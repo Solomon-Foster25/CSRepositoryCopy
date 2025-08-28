@@ -36,9 +36,9 @@
       submitButton = document.getElementById("submit")
       inputValue = document.getElementById("alphabet").value
       submitButton.addEventListener('click', function(event){
-        if (inputValue != /^[a-zA-Z]+$/) {
+        if (!inputValue.match(/^[a-zA-Z]+$/)) {
           console.log('Not a word! Contains numbers or special symbols');
-          background-color: red;
+          document.body.style.backgroundColor = "red";
         }
       }
     </script>
