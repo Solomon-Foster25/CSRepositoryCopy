@@ -34,7 +34,10 @@
     <script>
     
       inputValue = document.getElementById("alphabet").value
-      console.log(inputValue)
+      if (inputValue != /^[a-zA-Z]+$/) {
+        console.log('Not a word! Contains numbers or special symbols);
+        background-color: red;
+      }
     </script>
   </body>
 </html>
