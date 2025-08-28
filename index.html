@@ -31,14 +31,16 @@
 
     <label for="word">Enter a string:</label><br>
     <input type="text" id="alphabet" value="liar"><br><br>
+    <input type="submit" id="submit" value="Submit">
     <script>
-    
+      submitButton = document.getElementById("submit")
       inputValue = document.getElementById("alphabet").value
-      if (inputValue != /^[a-zA-Z]+$/) {
-        console.log('Not a word! Contains numbers or special symbols);
-        background-color: red;
-      }
+      submitButton.addEventListener('click', function(event){
+        if (inputValue != /^[a-zA-Z]+$/) {
+          console.log('Not a word! Contains numbers or special symbols');
+          background-color: red;
+        }
     </script>
-    <input type="submit" value="Submit">
+    
   </body>
 </html>
