@@ -14,6 +14,8 @@
     h1{margin:0;color:var(--fg)}
     h2{margin:0 0 1rem;color:var(--muted)}
     .btn{padding:12px 18px;border:none;border-radius:14px;background:var(--accent);color:#000;font-weight:bold;cursor:pointer}
+    #pickupMsg{position:fixed;top:20%;left:50%;transform:translateX(-50%);font-size:2rem;font-weight:bold;opacity:0;transition:opacity .4s ease, transform .4s ease;}
+    #pickupMsg.show{opacity:1;transform:translate(-50%,-20px);}
   </style>
 </head>
 <body>
@@ -21,6 +23,7 @@
   <div id="hud" style="position:fixed;top:10px;left:10px;font-weight:bold">Score: <span id="score">0</span> Lives: <span id="lives">3</span> Level: <span id="level">1</span></div>
   <div class="overlay" id="splash"><div class="panel"><h1>ASTEROIDS</h1><h2>with Powerups</h2><button id="startBtn" class="btn">▶ Start</button></div></div>
   <div class="overlay" id="pauseOverlay" style="display:none"><div class="panel"><h1>Paused</h1><button id="resumeBtn" class="btn">Resume</button><button id="restartBtn" class="btn">Restart</button></div></div>
+  <div id="pickupMsg"></div>
 
 <script>
 (()=>{
@@ -34,19 +37,21 @@
   const pauseOverlay=document.getElementById('pauseOverlay');
   const resumeBtn=document.getElementById('resumeBtn');
   const restartBtn=document.getElementById('restartBtn');
+  const pickupMsg=document.getElementById('pickupMsg');
 
   const rand=(a,b)=>Math.random()*(b-a)+a; const TAU=Math.PI*2;
   function fit(){canvas.width=innerWidth;canvas.height=innerHeight;} window.onresize=fit; fit();
 
   const State={SPLASH:0,PLAYING:1,PAUSED:2,GAMEOVER:3}; let state=State.SPLASH;
-  const game={score:0,lives:3,level:1,ship:null,bullets:[],asteroids:[],powerups:[],lastShot:0,rapid:0,shield:0};
+  const game={score:0,lives:3,level:1,ship:null,bullets:[],asteroids:[],powerups:[],effects:[],lastShot:0,rapid:0,shield:0};
 
   function makeShip(){return{x:canvas.width/2,y:canvas.height/2,vx:0,vy:0,angle:-Math.PI/2,thrust:false,radius:14,inv:0};}
   function makeAst(x,y,size=3){const sp={1:120,2:80,3:60}[size];const a=Math.random()*TAU;const r={1:16,2:28,3:46}[size];const pts=Array.from({length:8+(Math.random()*4|0)},(_,i)=>{const ang=i/8*TAU+rand(-.1,.1);return{a:ang,rad:r*rand(.7,1.2)};});return{x,y,vx:Math.cos(a)*rand(sp/2,sp),vy:Math.sin(a)*rand(sp/2,sp),angle:0,spin:rand(-1,1),size,radius:r,pts};}
   function makeBullet(x,y,a,s){const sp=360;return{x,y,vx:Math.cos(a)*sp+s.vx,vy:Math.sin(a)*sp+s.vy,life:0,max:.9,r:2};}
   function makePower(x,y){const t=['life','rapid','shield'][Math.random()*3|0];return{x,y,type:t,radius:12,vx:rand(-40,40),vy:rand(-40,40),life:8,isPowerup:true};}
+  function makeEffect(x,y,color){return{x,y,color,life:0,max:0.6};}
 
-  function reset(){game.score=0;game.lives=3;game.level=1;game.bullets=[];game.asteroids=[];game.powerups=[];game.ship=makeShip();spawnWave();updateHUD();}
+  function reset(){game.score=0;game.lives=3;game.level=1;game.bullets=[];game.asteroids=[];game.powerups=[];game.effects=[];game.ship=makeShip();spawnWave();updateHUD();}
   function spawnWave(){for(let i=0;i<3+game.level;i++){const x=Math.random()<.5?Math.random()*canvas.width:(Math.random()<.5?-40:canvas.width+40);const y=Math.random()<.5?(Math.random()<.5?-40:canvas.height+40):Math.random()*canvas.height;game.asteroids.push(makeAst(x,y,3));}}
   function updateHUD(){scoreEl.textContent=game.score;livesEl.textContent=game.lives;levelEl.textContent=game.level;}
 
@@ -66,8 +71,11 @@
   function drawAst(a){ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.angle);ctx.strokeStyle='#9fb3d9';ctx.beginPath();a.pts.forEach((p,i)=>{const x=Math.cos(p.a)*p.rad;const y=Math.sin(p.a)*p.rad;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.stroke();ctx.restore();}
   function drawB(b){ctx.beginPath();ctx.arc(b.x,b.y,2,0,TAU);ctx.fillStyle='#fff';ctx.fill();}
   function drawP(p){ctx.beginPath();ctx.arc(p.x,p.y,p.radius,0,TAU);ctx.fillStyle=p.type==='life'?'#0f0':p.type==='rapid'?'#0ff':'#ff0';ctx.fill();}
+  function drawEffect(e){ctx.beginPath();ctx.arc(e.x,e.y,20*e.life,0,TAU);ctx.strokeStyle=e.color;ctx.globalAlpha=1-e.life;ctx.stroke();ctx.globalAlpha=1;}
 
   function hit(a,b){const dx=a.x-b.x,dy=a.y-b.y;const r=(a.radius||a.r||0)+(b.radius||b.r||0);return dx*dx+dy*dy<=r*r;}
+
+  function showPickupMsg(text,color){pickupMsg.textContent=text;pickupMsg.style.color=color;pickupMsg.classList.add('show');setTimeout(()=>pickupMsg.classList.remove('show'),600);}
 
   let last=performance.now();
   function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.033);last=now;ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -79,13 +87,13 @@
       for(let i=game.asteroids.length-1;i>=0;i--){const a=game.asteroids[i];for(let j=game.bullets.length-1;j>=0;j--){const b=game.bullets[j];if(hit(a,b)){game.bullets.splice(j,1);game.asteroids.splice(i,1);if(Math.random()<0.2)game.powerups.push(makePower(a.x,a.y));game.score+=20;updateHUD();break;}}}
       if(s.inv<=0&&game.shield<=0){for(const a of game.asteroids){if(hit(a,s)){game.lives--;updateHUD();if(game.lives<=0){state=State.GAMEOVER;splash.style.display='flex';splash.querySelector('h2').textContent='Game Over — Score: '+game.score;}else{game.ship=makeShip();game.ship.inv=2.2;}break;}}}
       for(let i=game.powerups.length-1;i>=0;i--){const p=game.powerups[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;wrap(p);drawP(p);if(p.life<=0)game.powerups.splice(i,1);else if(hit(p,s)){
-        // Apply powerup effects without hurting the player
-        if(p.type==='life')game.lives++;
-        if(p.type==='rapid')game.rapid=6;
-        if(p.type==='shield')game.shield=6;
+        if(p.type==='life'){game.lives++;showPickupMsg('+1 Life','#0f0');game.effects.push(makeEffect(s.x,s.y,'#0f0'));}
+        if(p.type==='rapid'){game.rapid=6;showPickupMsg('Rapid Fire!','#0ff');game.effects.push(makeEffect(s.x,s.y,'#0ff'));}
+        if(p.type==='shield'){game.shield=6;showPickupMsg('Shield!','#ff0');game.effects.push(makeEffect(s.x,s.y,'#ff0'));}
         updateHUD();
         game.powerups.splice(i,1);
       }}
+      for(let i=game.effects.length-1;i>=0;i--){const e=game.effects[i];e.life+=dt;if(e.life>e.max){game.effects.splice(i,1);continue;}drawEffect(e);}
       drawShip(s);
     }
   }
