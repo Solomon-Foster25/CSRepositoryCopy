@@ -44,7 +44,7 @@
   function makeShip(){return{x:canvas.width/2,y:canvas.height/2,vx:0,vy:0,angle:-Math.PI/2,thrust:false,radius:14,inv:0};}
   function makeAst(x,y,size=3){const sp={1:120,2:80,3:60}[size];const a=Math.random()*TAU;const r={1:16,2:28,3:46}[size];const pts=Array.from({length:8+(Math.random()*4|0)},(_,i)=>{const ang=i/8*TAU+rand(-.1,.1);return{a:ang,rad:r*rand(.7,1.2)};});return{x,y,vx:Math.cos(a)*rand(sp/2,sp),vy:Math.sin(a)*rand(sp/2,sp),angle:0,spin:rand(-1,1),size,radius:r,pts};}
   function makeBullet(x,y,a,s){const sp=360;return{x,y,vx:Math.cos(a)*sp+s.vx,vy:Math.sin(a)*sp+s.vy,life:0,max:.9,r:2};}
-  function makePower(x,y){const t=['life','rapid','shield'][Math.random()*3|0];return{x,y,type:t,radius:12,vx:rand(-40,40),vy:rand(-40,40),life:8};}
+  function makePower(x,y){const t=['life','rapid','shield'][Math.random()*3|0];return{x,y,type:t,radius:12,vx:rand(-40,40),vy:rand(-40,40),life:8,isPowerup:true};}
 
   function reset(){game.score=0;game.lives=3;game.level=1;game.bullets=[];game.asteroids=[];game.powerups=[];game.ship=makeShip();spawnWave();updateHUD();}
   function spawnWave(){for(let i=0;i<3+game.level;i++){const x=Math.random()<.5?Math.random()*canvas.width:(Math.random()<.5?-40:canvas.width+40);const y=Math.random()<.5?(Math.random()<.5?-40:canvas.height+40):Math.random()*canvas.height;game.asteroids.push(makeAst(x,y,3));}}
@@ -78,7 +78,14 @@
       for(const a of game.asteroids){a.x+=a.vx*dt;a.y+=a.vy*dt;a.angle+=a.spin*dt;wrap(a);drawAst(a);}
       for(let i=game.asteroids.length-1;i>=0;i--){const a=game.asteroids[i];for(let j=game.bullets.length-1;j>=0;j--){const b=game.bullets[j];if(hit(a,b)){game.bullets.splice(j,1);game.asteroids.splice(i,1);if(Math.random()<0.2)game.powerups.push(makePower(a.x,a.y));game.score+=20;updateHUD();break;}}}
       if(s.inv<=0&&game.shield<=0){for(const a of game.asteroids){if(hit(a,s)){game.lives--;updateHUD();if(game.lives<=0){state=State.GAMEOVER;splash.style.display='flex';splash.querySelector('h2').textContent='Game Over — Score: '+game.score;}else{game.ship=makeShip();game.ship.inv=2.2;}break;}}}
-      for(let i=game.powerups.length-1;i>=0;i--){const p=game.powerups[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;wrap(p);drawP(p);if(p.life<=0)game.powerups.splice(i,1);else if(hit(p,s)){if(p.type==='life')game.lives++;if(p.type==='rapid')game.rapid=6;if(p.type==='shield')game.shield=6;updateHUD();game.powerups.splice(i,1);}}
+      for(let i=game.powerups.length-1;i>=0;i--){const p=game.powerups[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;wrap(p);drawP(p);if(p.life<=0)game.powerups.splice(i,1);else if(hit(p,s)){
+        // Apply powerup effects without hurting the player
+        if(p.type==='life')game.lives++;
+        if(p.type==='rapid')game.rapid=6;
+        if(p.type==='shield')game.shield=6;
+        updateHUD();
+        game.powerups.splice(i,1);
+      }}
       drawShip(s);
     }
   }
