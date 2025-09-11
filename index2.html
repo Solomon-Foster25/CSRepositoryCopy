@@ -79,7 +79,10 @@
 
   let last=performance.now();
   function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.033);last=now;ctx.clearRect(0,0,canvas.width,canvas.height);
-    if(state===State.PLAYING){const s=game.ship;s.thrust=keys.has('ArrowUp');if(keys.has('ArrowLeft'))s.angle-=3*dt;if(keys.has('ArrowRight'))s.angle+=3*dt;if(s.thrust){s.vx+=Math.cos(s.angle)*200*dt;s.vy+=Math.sin(s.angle)*200*dt;}s.vx*=.995;s.vy*=.995;s.x+=s.vx*dt;s.y+=s.vy*dt;wrap(s);if(s.inv>0)s.inv-=dt;if(game.rapid>0)game.rapid-=dt;if(game.shield>0)game.shield-=dt;
+    if(state===State.PLAYING){const s=game.ship;s.thrust=keys.has('ArrowUp');if(keys.has('ArrowLeft'))s.angle-=3*dt;if(keys.has('ArrowRight'))s.angle+=3*dt;if(s.thrust){s.vx+=Math.cos(s.angle)*200*dt;s.vy+=Math.sin(s.angle)*200*dt;}
+      // Gradual braking with ArrowDown
+      if(keys.has('ArrowDown')){s.vx*=0.9;s.vy*=0.9;}
+      s.vx*=.995;s.vy*=.995;s.x+=s.vx*dt;s.y+=s.vy*dt;wrap(s);if(s.inv>0)s.inv-=dt;if(game.rapid>0)game.rapid-=dt;if(game.shield>0)game.shield-=dt;
       const delay=game.rapid>0?70:140;if(keys.has(' ')&&now-game.lastShot>delay){game.bullets.push(makeBullet(s.x+Math.cos(s.angle)*16,s.y+Math.sin(s.angle)*16,s.angle,s));game.lastShot=now;}
       for(let i=game.bullets.length-1;i>=0;i--){const b=game.bullets[i];b.life+=dt;if(b.life>b.max){game.bullets.splice(i,1);continue;}b.x+=b.vx*dt;b.y+=b.vy*dt;wrap(b);drawB(b);}
       if(game.asteroids.length===0){game.level++;spawnWave();updateHUD();}
